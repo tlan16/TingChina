@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import requests,re,time
 
 
-VideoID = 28024
+VideoID = 29169
 
 headers = {
     'Host': 'm.tingchina.com',
@@ -57,17 +57,17 @@ Mp3Names= Playdict.keys()
 
 NO = 0
 for Mp3Name in Mp3Names:
-    Mp3Url = Playdict[Mp3Name]
-    response = requests.get(Mp3Url,headers =headers)
-    response.encoding = 'gbk'
-    html_doc = response.text
-    soup = BeautifulSoup(html_doc, 'lxml')
-    scripts = soup.find_all('script')
-    for script in scripts:
-        playlist = re.findall(r'(file:.*)"\r\n',str(script.string),re.S)
-        if playlist:
-            NO+=1
-            if NO > 0:#在此章节中断，继续下载
+    NO+=1
+    if NO > 0:#在此章节中断，继续下载
+        Mp3Url = Playdict[Mp3Name]
+        response = requests.get(Mp3Url,headers =headers)
+        response.encoding = 'gbk'
+        html_doc = response.text
+        soup = BeautifulSoup(html_doc, 'lxml')
+        scripts = soup.find_all('script')
+        for script in scripts:
+            playlist = re.findall(r'(file:.*)"\r\n',str(script.string),re.S)
+            if playlist:
                 playlist = ''.join(playlist[0].split())
                 playlist = playlist.replace('"','')
                 playlist = playlist.split(',')
@@ -75,6 +75,6 @@ for Mp3Name in Mp3Names:
                 Name = playlist[1].replace('trackName:','')
                 with open('UrlList.txt','a') as f:
                     IdmDownLoad(DownloadUrl)
-                    time.sleep(3)
-            else:
-                print('第%d章节已下载，跳过'%NO)
+                    time.sleep(5)
+    else:
+        print('第%d章节已下载，跳过'%NO)
