@@ -1,0 +1,23 @@
+{
+  "name": "tlan16/ting-china",
+  "authors": [
+    {
+      "name": "Frank Lan",
+      "email": "frank.lan@balanceinternet.com.au"
+    }
+  ],
+  "require": {
+    "guzzlehttp/guzzle": "^6.3",
+    "ext-iconv": "*",
+    "symfony/dom-crawler": "^4.3",
+    "symfony/css-selector": "^4.3",
+    "neitanod/forceutf8": "^2.0"
+  },
+  "autoload": {
+    "autoload": {
+      "psr-4": {
+        "TingChina\\": "src/"
+      }
+    }
+  }
+}

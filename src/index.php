@@ -1,8 +1,8 @@
 <?php
 
-include_once __DIR__.'/../vendor/autoload.php';
-include_once __DIR__.'/Factories/HttpClientFactory.php';
-include_once __DIR__.'/Parsers/SiteMapParser.php';
+include_once __DIR__ . '/../vendor/autoload.php';
+include_once __DIR__ . '/Factories/HttpClientFactory.php';
+include_once __DIR__ . '/Parsers/SiteMapParser.php';
 
 use TingChina\Factories\HttpClientFactory;
 use TingChina\Parsers\SiteMapParser;
@@ -15,6 +15,8 @@ class main
 
     private $siteMapParser;
 
+    private $downloading = [];
+
     public function __construct()
     {
         $this->httpClient = HttpClientFactory::get();
@@ -23,44 +25,50 @@ class main
 
     public function __invoke()
     {
+        ini_set('implicit_flush', true);
+        ob_implicit_flush(true);
+
         $books = ($this->siteMapParser)($this->httpClient, self::SITE_MAP_URI);
         foreach ($books as $id => $title) {
+            echo (new DateTimeImmutable())->format(DateTimeImmutable::RFC3339);
+            echo " Book $id: $title" . PHP_EOL;
+            flush();
             $this->downloadBook($id, $title);
         }
     }
 
     private function downloadBook($id, string $title)
     {
-        $this->disable_ob();
+        echo "start downloading $id: $title" . PHP_EOL;
 
-        $path = __DIR__."/../dist/$title";
-        mkdir($path, 0777, true);
-        $cmd = 'python3 '.__DIR__."/../My_yousheng.py $id $path";
-        system($cmd);
+        $basePath = '/mnt/v/AudioBooks';
+        $path = $basePath . "/$title";
+        if (!file_exists($path)) {
+            mkdir($path, 0777, true);
+        }
+        $cmd = 'python3 ' . __DIR__ . "/../My_yousheng.py $id $path";
+        $this->downloading[$id] = $title;
+
+        $cpuLimit = $this->get_processor_cores_number();
+        while (sys_getloadavg()[0] > $cpuLimit || sys_getloadavg()[1] > $cpuLimit) {
+            echo 'CPU load too high ' . implode(',', sys_getloadavg()) . PHP_EOL;
+            sleep(10);
+        }
+
+        echo "CMD: $cmd" . PHP_EOL;
+
+        $outputfile = __DIR__ . '/../dist/' . $id . '.log';
+        $pidfile = __DIR__ . '/../dist/' . $id . '.pid';
+        exec(sprintf("%s > %s 2>&1 & echo $! >> %s", $cmd, $outputfile, $pidfile));
+
+        $this->downloading[] = $outputfile;
     }
 
-    private function disable_ob() {
-        // Turn off output buffering
-        ini_set('output_buffering', 'off');
-        // Turn off PHP output compression
-        ini_set('zlib.output_compression', false);
-        // Implicitly flush the buffer(s)
-        ini_set('implicit_flush', true);
-        ob_implicit_flush(true);
-        // Clear, and turn off output buffering
-        while (ob_get_level() > 0) {
-            // Get the curent level
-            $level = ob_get_level();
-            // End the buffering
-            ob_end_clean();
-            // If the current level has not changed, abort
-            if (ob_get_level() == $level) break;
-        }
-        // Disable apache output buffering/compression
-        if (function_exists('apache_setenv')) {
-            apache_setenv('no-gzip', '1');
-            apache_setenv('dont-vary', '1');
-        }
+    private function get_processor_cores_number()
+    {
+        $command = "cat /proc/cpuinfo | grep processor | wc -l";
+
+        return (int)shell_exec($command);
     }
 }
 
